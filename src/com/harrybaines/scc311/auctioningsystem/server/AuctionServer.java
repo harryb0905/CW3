@@ -13,6 +13,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Harry Baines
  */
 
-public class AuctionServer {
+public class AuctionServer{
 
     private ConcurrentHashMap<String, AuctionItem> auctions;  /* ConcurrentHashMap of all active auctions */
 

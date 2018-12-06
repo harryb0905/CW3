@@ -26,8 +26,6 @@ public interface IAuctionServer extends Remote {
   public static final int AUCTION_CLOSED = 8;
   public static final int AUCTION_CREATED = 9;
 
-  public String getRandom(int min, int max) throws RemoteException;
-
   /**
    * Method called by the client once this server has been verified.
    * This method will return a challenge for the client to solve.

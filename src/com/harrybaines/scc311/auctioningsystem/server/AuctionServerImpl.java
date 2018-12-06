@@ -33,7 +33,7 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
 
   // JGroups
   private static final String CLUSTER_NAME = "RAND_CLUSTER";
-  private static final int TIMEOUT = 1000;
+  private static final int TIMEOUT = 5000;
   private JChannel channel;
   private RpcDispatcher dispatcher;
   private RequestOptions requestOptions;
@@ -53,31 +53,11 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
     try {
       this.channel = new JChannel();
       this.requestOptions = new RequestOptions(ResponseMode.GET_ALL, TIMEOUT);
-      this.dispatcher = new RpcDispatcher(this.channel, new ClusterMember());
+      this.dispatcher = new RpcDispatcher(this.channel, null);
       this.channel.connect(CLUSTER_NAME);
     } catch(Exception e) {
       System.out.println("[SERVER] Failed to connect to cluster");
     }
-  }
-
-  public String getRandom(int min, int max) throws RemoteException {
-    try {
-      System.out.println("GENERATING RANDOM");
-      RspList responses = this.dispatcher.callRemoteMethods(  null,
-              "generateRandom",
-              new Object[]{min, max},
-              new Class[]{int.class, int.class},
-              this.requestOptions );
-      int value = 0;
-      for (Object response : responses.getResults()) {
-        value += (int)response;
-      }
-
-      return Float.toString(value/responses.size());
-    } catch(Exception e) {
-      System.out.println("[SERVER] Failed to get responses");
-    }
-    return null;
   }
 
   /**
@@ -89,13 +69,15 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
   public ServerResponse createAuction(AuctionItem auctionItem) {
     try {
       System.out.println("[SERVER] CREATING AUCTION");
-      RspList responses = this.dispatcher.callRemoteMethods(  null,
+      RspList<ServerResponse> responses = this.dispatcher.callRemoteMethods(  null,
               "createAuction",
               new Object[]{auctionItem},
               new Class[]{auctionItem.getClass()},
               this.requestOptions );
 
-      return (ServerResponse) responses.getFirst();
+
+
+      return  responses.getFirst();
     } catch(Exception e) {
       System.out.println("[SERVER] Failed to get responses");
     }
