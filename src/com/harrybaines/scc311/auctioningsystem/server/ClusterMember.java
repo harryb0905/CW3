@@ -26,12 +26,6 @@ public class ClusterMember extends ReceiverAdapter {
     private JChannel channel;
     private RpcDispatcher dispatcher;
 
-
-    public static int generateRandom(int min, int max) {
-        System.out.println("[CM] Generating Random");
-        return ((new Random()).nextInt(max - min) + min);
-    }
-
     public ServerResponse createAuction(AuctionItem auctionItem) {
         System.out.println("[CM] Creating Auction");
         String auctionId = nextID.getAndIncrement() + "";
@@ -48,14 +42,13 @@ public class ClusterMember extends ReceiverAdapter {
      * @return a server response containing the result of the close auction method.
      * @throws RemoteException if an error occurs on the server.
      */
-    @Override
     public synchronized ServerResponse closeAuction(String auctionId, User user) throws RemoteException {
         AuctionItem auction = null; //auctions.get(auctionId);
         // Check if auction exists and only allow seller to close
         if (auction == null) {
-            return (new ServerResponse(NO_AUCTION, auction));
+            return (new ServerResponse(IAuctionServer.NO_AUCTION, auction));
         } else if (!this.ownsAuction(auction, user.getId())) {
-            return (new ServerResponse(CANT_CLOSE_OWN, auction));
+            return (new ServerResponse(IAuctionServer.CANT_CLOSE_OWN, auction));
         }
         AuctionItem auctionItem = null;//auctions.remove(auctionId);
         Bid highestBid = auctionItem.getHighestBid();
@@ -64,9 +57,9 @@ public class ClusterMember extends ReceiverAdapter {
         // Indicate if reserve price has not been reached
         double bidAmount = highestBid != null ? highestBid.getBidValue() : -1;
         if (bidAmount == -1 || bidAmount < auctionItem.getReservePrice()) {
-            return (new ServerResponse(RESERVE_NOT_MET, auctionItem));
+            return (new ServerResponse(IAuctionServer.RESERVE_NOT_MET, auctionItem));
         }
-        return (new ServerResponse(AUCTION_WON, auctionItem));
+        return (new ServerResponse(IAuctionServer.AUCTION_WON, auctionItem));
     }
 
 
@@ -91,17 +84,35 @@ public class ClusterMember extends ReceiverAdapter {
 
     @Override
     public void getState(OutputStream output) throws Exception {
+        System.out.println("getting state");
+
+        ObjectOutputStream out = new ObjectOutputStream(output);
         synchronized (auctions) {
-            Util.objectToStream(auctions, new DataOutputStream(output));
+            out.writeObject(auctions);
+            out.writeObject(nextID);
         }
-//    super.getState(output);
+    }
+
+    /**
+     * Method to determine if a given auction id is owned by a particular user by id.
+     * @param auctionItem the item of the auction to check.
+     * @param userId the id of the user to check.
+     * @return true if this user owns the provided auction, false otherwise.
+     */
+    private boolean ownsAuction(AuctionItem auctionItem, String userId) {
+        return auctionItem.getSeller().getId().equals(userId) ? true : false;
     }
 
     @Override
     public void setState(InputStream input) throws Exception {
         System.out.println("setting state");
-        Map<String, AuctionItem> newState = (Map<String, AuctionItem>) Util.objectFromStream(new DataInputStream(input));
+
+        ObjectInputStream in = new ObjectInputStream(input);
+
+        Map<String, AuctionItem> newState = (Map<String, AuctionItem>) in.readObject();
+        AtomicInteger newIDstart = (AtomicInteger) in.readObject();
         synchronized (auctions) {
+            nextID.set(newIDstart.get());
             auctions.clear();
             auctions.putAll(newState);
         }

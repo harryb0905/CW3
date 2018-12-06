@@ -39,7 +39,6 @@ public class Client {
     try {
       // Get reference to remote object via the service in the rmiregistry
       this.auctionServer = (IAuctionServer) Naming.lookup(Constants.REGISTRY_URL);
-      System.out.println(this.auctionServer.getRandom(10,20));
       System.out.format(Constants.SERVER_CONNECTED_STR, Constants.REGISTRY_URL);
       // Create new input reader and get user details
       this.reader = new BufferedReader(new InputStreamReader(System.in));

@@ -52,6 +52,7 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
     // Join / Create the JGroups cluster
     try {
       this.channel = new JChannel();
+      this.channel.setDiscardOwnMessages(true);
       this.requestOptions = new RequestOptions(ResponseMode.GET_ALL, TIMEOUT);
       this.dispatcher = new RpcDispatcher(this.channel, null);
       this.channel.connect(CLUSTER_NAME);
