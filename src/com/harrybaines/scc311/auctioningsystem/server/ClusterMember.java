@@ -198,11 +198,11 @@ public class ClusterMember extends ReceiverAdapter {
         // Setup and connect to the channel
         this.channel = new JChannel();
         this.dispatcher = new RpcDispatcher(this.channel, this, this, this);
-
+        System.out.println("conneted to channel");
         this.channel.connect(Constants.CLUSTER_NAME);
 
         this.dispatcher.start();
-        this.channel.getState(null,Constants.TIMEOUT);
+        this.channel.getState(null, Constants.TIMEOUT);
     }
 
     /**
@@ -251,7 +251,7 @@ public class ClusterMember extends ReceiverAdapter {
 
     /**
      * Main method to start a new cluster member instance.
-     * @param args
+     * @param args unused.
      * @throws Exception
      */
     public static void main(String args[]) throws Exception {
