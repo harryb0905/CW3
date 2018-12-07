@@ -24,6 +24,7 @@ import java.security.spec.*;
  * Date: 03/11/18
  *
  * A Class to represent an auctioning server.
+ * This is the front-end server for the Java RMI-JGroups communication system.
  * The implementation of all the methods is provided
  * by the methods in the IAcutionServer interface.
  * @author Harry Baines
@@ -31,9 +32,6 @@ import java.security.spec.*;
 
 public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionServer {
 
-  // JGroups
-  private static final String CLUSTER_NAME = "RAND_CLUSTER";
-  private static final int TIMEOUT = 5000;
   private JChannel channel;
   private RpcDispatcher dispatcher;
   private RequestOptions requestOptions;
@@ -44,18 +42,19 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
   */
   public AuctionServerImpl() throws RemoteException {
     super();
-    //this.auctions = new ConcurrentHashMap<String, AuctionItem>();
     setupCluster();
   }
 
+  /**
+   * Sets up a new JGroups cluster and connects.
+   */
   private void setupCluster() {
-    // Join / Create the JGroups cluster
     try {
       this.channel = new JChannel();
       this.channel.setDiscardOwnMessages(true);
-      this.requestOptions = new RequestOptions(ResponseMode.GET_ALL, TIMEOUT);
+      this.requestOptions = new RequestOptions(ResponseMode.GET_ALL, Constants.TIMEOUT);
       this.dispatcher = new RpcDispatcher(this.channel, null);
-      this.channel.connect(CLUSTER_NAME);
+      this.channel.connect(Constants.CLUSTER_NAME);
     } catch(Exception e) {
       System.out.println("[SERVER] Failed to connect to cluster");
     }
@@ -67,7 +66,7 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    * @return a server response containing the result of the create auction method.
    * @throws RemoteException if an error occurs on the server.
    */
-  public ServerResponse createAuction(AuctionItem auctionItem) {
+  public ServerResponse createAuction(AuctionItem auctionItem) throws RemoteException {
     try {
       System.out.println("[SERVER] CREATING AUCTION");
       RspList<ServerResponse> responses = this.dispatcher.callRemoteMethods(  null,
@@ -75,12 +74,9 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
               new Object[]{auctionItem},
               new Class[]{auctionItem.getClass()},
               this.requestOptions );
-
-
-
-      return  responses.getFirst();
+      return responses.getFirst();
     } catch(Exception e) {
-      System.out.println("[SERVER] Failed to get responses");
+      System.out.println("[SERVER] [CREATE AUCTION] Failed to get responses");
     }
     return null;
   }
@@ -94,23 +90,18 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    */
   @Override
   public synchronized ServerResponse closeAuction(String auctionId, User user) throws RemoteException {
-    AuctionItem auction = null; //auctions.get(auctionId);
-    // Check if auction exists and only allow seller to close
-    if (auction == null) {
-      return (new ServerResponse(NO_AUCTION, auction));
-    } else if (!this.ownsAuction(auction, user.getId())) {
-      return (new ServerResponse(CANT_CLOSE_OWN, auction));
+    try {
+      System.out.println("[SERVER] CLOSING AUCTION");
+      RspList<ServerResponse> responses = this.dispatcher.callRemoteMethods(  null,
+              "closeAuction",
+              new Object[]{auctionId, user},
+              new Class[]{String.class, User.class},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [CLOSE AUCTION] Failed to get responses");
     }
-    AuctionItem auctionItem = null;//auctions.remove(auctionId);
-    Bid highestBid = auctionItem.getHighestBid();
-    System.out.println(String.format(Constants.AUCTION_CLOSED, auctionId) + String.format(Constants.AUCTION_SUMMARY, auctionItem.toSummaryString()));
-
-    // Indicate if reserve price has not been reached
-    double bidAmount = highestBid != null ? highestBid.getBidValue() : -1;
-    if (bidAmount == -1 || bidAmount < auctionItem.getReservePrice()) {
-      return (new ServerResponse(RESERVE_NOT_MET, auctionItem));
-    }
-    return (new ServerResponse(AUCTION_WON, auctionItem));
+    return null;
   }
 
   /**
@@ -121,51 +112,18 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    */
   @Override
   public synchronized ServerResponse bid(Bid bid) throws RemoteException {
-    double bidAmount = bid.getBidValue();
-    User bidder = bid.getBidder();
-    String auctionId = bid.getAuctionId();
-
-    // Check if auction exists and bidder isnt the seller
-    AuctionItem auctionItem = null;//auctions.get(auctionId);
-    if (auctionItem == null) {
-      return (new ServerResponse(NO_AUCTION, null));
-    } else if (this.ownsAuction(auctionItem, bidder.getId())) {
-      return (new ServerResponse(CANT_BID_OWN, null));
+    try {
+      System.out.println("[SERVER] BIDDING");
+      RspList<ServerResponse> responses = this.dispatcher.callRemoteMethods(  null,
+              "bid",
+              new Object[]{bid},
+              new Class[]{Bid.class},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [BIDDING] Failed to get responses");
     }
-
-    // Get highest bid
-    Bid highestBid = auctionItem.getHighestBid();
-    double startPrice = auctionItem.getStartPrice();
-    // Bid validation
-    if (bidAmount < startPrice) {
-      return (new ServerResponse(BID_SMALLER_THAN_START, null));
-    } else if (highestBid != null && bidAmount <= highestBid.getBidValue()) {
-      return (new ServerResponse(BID_SMALLER_THAN_HIGH, null));
-    }
-
-    // Create new bid
-    auctionItem.setHighestBid(bid);
-    System.out.println(String.format(Constants.BID_SUCCESSFUL, auctionId) + String.format(Constants.AUCTION_SUMMARY, auctionItem.toSummaryString()));
-    return (new ServerResponse(BID_SUCCESSFUL, auctionItem));
-  }
-//
-  /**
-   * Accessor to obtain the list of currently active auctions.
-   * @return the list of currently active auctions.
-   */
-  @Override
-  public ConcurrentHashMap<String, AuctionItem> getActiveAuctions() throws RemoteException {
-    return null;//auctions;
-  }
-
-  /**
-   * Method to determine if a given auction id is owned by a particular user by id.
-   * @param auctionItem the item of the auction to check.
-   * @param userId the id of the user to check.
-   * @return true if this user owns the provided auction, false otherwise.
-   */
-  private boolean ownsAuction(AuctionItem auctionItem, String userId) {
-    return auctionItem.getSeller().getId().equals(userId) ? true : false;
+    return null;
   }
 
   // ================================================================== //
@@ -180,7 +138,18 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    */
   @Override
   public AuthChallenge attemptAuth() throws RemoteException {
-    return SecurityManager.getChallenge();
+    try {
+      System.out.println("[SERVER] ATTEMPTING AUTH");
+      RspList<AuthChallenge> responses = this.dispatcher.callRemoteMethods(  null,
+              "attemptAuth",
+              new Object[]{},
+              new Class[]{},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [ATTEMPTING AUTH] Failed to get responses");
+    }
+    return null;
   }
 
   /**
@@ -192,12 +161,16 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    */
   @Override
   public ServerAuthResponse signChallenge(AuthChallenge challenge) throws RemoteException {
-    PrivateKey privKey = this.getPrivateKey();
     try {
-      byte[] sigBytes = SecurityManager.signChallenge(challenge, privKey);
-      return (new ServerAuthResponse(sigBytes, challenge, false));
-    } catch (Exception e) {
-      System.out.println("Couldn't sign the authentication challenge");
+      System.out.println("[SERVER] SIGNING AUTH");
+      RspList<ServerAuthResponse> responses = this.dispatcher.callRemoteMethods(  null,
+              "signChallenge",
+              new Object[]{challenge},
+              new Class[]{AuthChallenge.class},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [SIGNING AUTH] Failed to get responses");
     }
     return null;
   }
@@ -211,8 +184,18 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    */
   @Override
   public ServerAuthResponse verifySignature(AuthSig authSig) throws RemoteException {
-    boolean verifies = SecurityManager.verifySignature(authSig);
-    return (new ServerAuthResponse(authSig.getSigBytes(), authSig.getChallenge(), verifies));
+    try {
+      System.out.println("[SERVER] VERIFYING SIGNATURE");
+      RspList<ServerAuthResponse> responses = this.dispatcher.callRemoteMethods(  null,
+              "verifySignature",
+              new Object[]{authSig},
+              new Class[]{AuthSig.class},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [VERIFYING SIGNATURE] Failed to get responses");
+    }
+    return null;
   }
 
   /**
@@ -220,24 +203,36 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
    * @return the private key object.
    */
   private PrivateKey getPrivateKey() {
-    try (FileInputStream keyfis = new FileInputStream(Constants.SERVER_DIR + Constants.SERVER_PRIVATE_KEY_STR)) {
-      byte[] encKey = new byte[keyfis.available()];
-      keyfis.read(encKey);
-      PKCS8EncodedKeySpec privKeySpec = new PKCS8EncodedKeySpec(encKey);
-      return KeyFactory.getInstance("DSA", "SUN").generatePrivate(privKeySpec);
-    } catch (Exception e) {
-      System.out.println("Couldn't get server private key");
+    try {
+      System.out.println("[SERVER] GET PRIVATE KEY");
+      RspList<PrivateKey> responses = this.dispatcher.callRemoteMethods(  null,
+              "getPrivateKey",
+              new Object[]{},
+              new Class[]{},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [GET PRIVATE KEY] Failed to get responses");
     }
     return null;
   }
 
   /**
-   * Method to register a new user to the system based on the new user id.
-   * @param userId the id of the new user.
-   * @return true if the user was registered successfully, false otherwise.
+   * Accessor to obtain the list of currently active auctions.
+   * @return the list of currently active auctions.
    */
-  public boolean registerUser(String userId) {
-    File f = new File(Constants.USERS_DIR_SERVER + userId);
-    return f.exists() && f.isDirectory() ? true : false;
+  public ConcurrentHashMap<String, AuctionItem> getActiveAuctions() throws RemoteException {
+    try {
+      System.out.println("[SERVER] GET ACTIVE AUCTIONS");
+      RspList<ConcurrentHashMap<String, AuctionItem>> responses = this.dispatcher.callRemoteMethods(  null,
+              "getActiveAuctions",
+              new Object[]{},
+              new Class[]{},
+              this.requestOptions );
+      return responses.getFirst();
+    } catch(Exception e) {
+      System.out.println("[SERVER] [GET ACTIVE AUCTIONS] Failed to get responses");
+    }
+    return null;
   }
 }

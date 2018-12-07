@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Harry Baines
  */
 
-public class AuctionServer{
+public class AuctionServer {
 
     private ConcurrentHashMap<String, AuctionItem> auctions;  /* ConcurrentHashMap of all active auctions */
 
@@ -42,15 +42,11 @@ public class AuctionServer{
         setupRMI();
     }
 
-    // Bind to the RMI Registry
+    /**
+     * Sets up the RMI registry and binds to a specific port.
+     */
     private void setupRMI() {
-//    try {
-//      Naming.rebind("rmi://localhost/"+SERVICE_NAME, this);
-//    } catch(Exception e) {
-//      System.out.println("[SERVER] Failed to bind");
-//    }
         try {
-            // AuctionServerImpl implements IAuctionServer interface (therefore is valid)
             Registry registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT);
             IAuctionServer auctionServer = new AuctionServerImpl();
             registry.rebind(Constants.SERVICE, auctionServer);

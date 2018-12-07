@@ -11,11 +11,13 @@ import java.util.Collections;
 */
 public final class Constants {
 
-  // RMI Registry and service constants
+  // RMI Registry, JGroups and service constants
   public static final String REGISTRY = "rmi://localhost/";
   public static final String SERVICE = "AuctionServer";
   public static final String REGISTRY_URL = REGISTRY + SERVICE;
   public static final int REGISTRY_PORT = 1099;
+  public static final String CLUSTER_NAME = "RAND_CLUSTER";
+  public static final int TIMEOUT = 5000;
 
   public static final String USERS_DIR_CLIENT = "src/com/harrybaines/scc311/auctioningsystem/client/users/";
   public static final String USERS_DIR_SERVER = "src/com/harrybaines/scc311/auctioningsystem/server/users/";
