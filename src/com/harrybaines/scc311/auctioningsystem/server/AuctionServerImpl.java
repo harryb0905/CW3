@@ -51,9 +51,8 @@ public class AuctionServerImpl extends UnicastRemoteObject implements IAuctionSe
   private void setupCluster() {
     try {
       this.channel = new JChannel();
-      this.channel.setDiscardOwnMessages(true);
       this.requestOptions = new RequestOptions(ResponseMode.GET_ALL, Constants.TIMEOUT);
-      this.dispatcher = new RpcDispatcher(this.channel, null);
+      this.dispatcher = new RpcDispatcher(this.channel, new ClusterMember());
       this.channel.connect(Constants.CLUSTER_NAME);
     } catch(Exception e) {
       System.out.println("[SERVER] Failed to connect to cluster");

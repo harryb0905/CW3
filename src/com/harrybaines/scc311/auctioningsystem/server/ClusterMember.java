@@ -152,6 +152,7 @@ public class ClusterMember extends ReceiverAdapter {
      * @throws RemoteException if an error occurs on the server.
      */
     public ServerAuthResponse signChallenge(AuthChallenge challenge) throws RemoteException {
+        System.out.println("SIGNING ON CLUSTER");
         PrivateKey privKey = this.getPrivateKey();
         try {
             byte[] sigBytes = SecurityManager.signChallenge(challenge, privKey);
@@ -198,8 +199,8 @@ public class ClusterMember extends ReceiverAdapter {
         // Setup and connect to the channel
         this.channel = new JChannel();
         this.dispatcher = new RpcDispatcher(this.channel, this, this, this);
-        System.out.println("conneted to channel");
         this.channel.connect(Constants.CLUSTER_NAME);
+        System.out.println("conneted to channel");
 
         this.dispatcher.start();
         this.channel.getState(null, Constants.TIMEOUT);
