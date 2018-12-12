@@ -200,7 +200,7 @@ public class ClusterMember extends ReceiverAdapter {
         this.channel = new JChannel();
         this.dispatcher = new RpcDispatcher(this.channel, this, this, this);
         this.channel.connect(Constants.CLUSTER_NAME);
-        System.out.println("conneted to channel");
+        System.out.println("connected to channel");
 
         this.dispatcher.start();
         this.channel.getState(null, Constants.TIMEOUT);
